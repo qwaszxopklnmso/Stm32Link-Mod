@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:note_block",
+    "minecraft:stick"
+  ],
+  "result": {
+    "count": 1,
+    "id": "with_stm32:tune_whistle"
+  }
+}

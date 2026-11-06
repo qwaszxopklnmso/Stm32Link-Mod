@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "with_stm32:block/link_lamp_red_off"
+  }
+}

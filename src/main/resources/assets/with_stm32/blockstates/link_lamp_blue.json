@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "with_stm32:block/link_lamp_blue_off"
+    },
+    "lit=true": {
+      "model": "with_stm32:block/link_lamp_blue_on"
+    }
+  }
+}

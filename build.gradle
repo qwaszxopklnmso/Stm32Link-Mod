@@ -1,0 +1,112 @@
+plugins {
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	// 国内镜像（Maven Central 直连超时的替代）
+	maven { name = 'AliyunPublic'; url = 'https://maven.aliyun.com/repository/public' }
+	mavenCentral()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"with_stm32" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Serial port access (bundled into the mod jar via jar-in-jar)
+	include implementation("com.fazecast:jSerialComm:2.11.0")
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
+
+// Copy the remapped mod jar into the local 1.21.8WithSTM instance.
+// Usage: .\gradlew copyJar
+def modsDir = file('D:/MC/.minecraft/versions/1.21.8WithSTM/mods')
+def modRootName = project.rootProject.name
+def modVersion = project.version
+
+tasks.register('copyJar', Copy) {
+	// Local convenience only: public builds skip this when the instance is absent.
+	onlyIf { modsDir.exists() }
+	doFirst {
+		if (modsDir.exists()) {
+			modsDir.listFiles()?.each { f ->
+				if (f.name.startsWith(modRootName) && f.name.endsWith('.jar')) {
+					f.delete()
+				}
+			}
+		}
+	}
+	from remapJar
+	into modsDir
+	rename { String fileName ->
+		fileName.replace("-${modVersion}", "")
+	}
+}
+
+build {
+	dependsOn copyJar
+}

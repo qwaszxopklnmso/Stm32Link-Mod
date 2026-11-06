@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "powered=false": {
+      "model": "with_stm32:block/remote_transmitter_off"
+    },
+    "powered=true": {
+      "model": "with_stm32:block/remote_transmitter_on"
+    }
+  }
+}

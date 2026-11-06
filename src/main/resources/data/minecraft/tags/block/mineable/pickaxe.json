@@ -1,0 +1,9 @@
+{
+  "values": [
+    "with_stm32:link_lamp_red",
+    "with_stm32:link_lamp_green",
+    "with_stm32:link_lamp_blue",
+    "with_stm32:remote_receiver",
+    "with_stm32:remote_transmitter"
+  ]
+}

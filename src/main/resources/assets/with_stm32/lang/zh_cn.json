@@ -1,0 +1,9 @@
+{
+  "itemGroup.with_stm32": "STM32 互联",
+  "block.with_stm32.link_lamp_red": "联控灯（红）",
+  "block.with_stm32.link_lamp_green": "联控灯（绿）",
+  "block.with_stm32.link_lamp_blue": "联控灯（蓝）",
+  "block.with_stm32.remote_receiver": "遥测接收器（STM32→MC）",
+  "block.with_stm32.remote_transmitter": "遥测发射器（MC→STM32）",
+  "item.with_stm32.tune_whistle": "曲哨"
+}

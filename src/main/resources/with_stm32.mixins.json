@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "qw.with_stm32.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,16 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		// 国内镜像：Maven Central 被墙时的替代
+		maven { name = 'AliyunPlugin'; url = 'https://maven.aliyun.com/repository/gradle-plugin' }
+		maven { name = 'AliyunPublic'; url = 'https://maven.aliyun.com/repository/public' }
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+// Should match your modid
+rootProject.name = 'with_stm32'

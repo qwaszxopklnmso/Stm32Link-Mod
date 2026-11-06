@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "with_stm32",
+  "version": "${version}",
+  "name": "With STM32",
+  "description": "MC <-> STM32 serial link: link lamps, telemetry receiver/transmitter and a synchronized tune whistle. See STM32_Set.md for wiring.",
+  "authors": [
+    "qw"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/FabricMC/fabric-example-mod"
+  },
+  "license": "CC0-1.0",
+  "icon": "assets/with_stm32/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "qw.with_stm32.With_Stm32"
+    ],
+    "client": [
+      "qw.with_stm32.client.With_Stm32Client"
+    ]
+  },
+  "mixins": [
+    "with_stm32.mixins.json",
+    {
+      "config": "with_stm32.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~1.21.8",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
