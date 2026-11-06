@@ -1,5 +1,7 @@
 # With_Stm32 — Stm32Link Minecraft Mod
 
+[中文](README.zh-CN.md) | English
+
 A Fabric 1.21.8 mod that connects Minecraft blocks to an STM32F103C8T6 over a
 CH340 serial link. It is the Minecraft half of the
 [Stm32Link](https://github.com/qwaszxopklnmso/Stm32Link) project.
