@@ -42,3 +42,6 @@ replay_*.log
 # local test / run logs
 *.log
 test*.sh
+
+# Windows reserved device name that some cmd wrappers create
+CON
