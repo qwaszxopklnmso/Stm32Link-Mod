@@ -15,7 +15,7 @@ CH340 serial link. It is the Minecraft half of the
 - **Telemetry transmitter** — a redstone signal turns on the board's PA4
   T-LED and plays a short confirmation beep.
 - **Telemetry receivers** — three variants, each on its own board button:
-  - **Level**: the output follows **B4** (a 15-level on/off switch).
+  - **Level**: the output follows **B4** while it is held (15); release -> 0.
   - **Pulse**: each press of **B2** emits a short redstone pulse.
   - **Toggle**: each press of **B3** flips a persistent output latch.
   B1 is the red link-lamp button only; B2/B3 no longer toggle lamps.
