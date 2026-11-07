@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 
 /**
  * Mirrored STM32 state (always updated on the server thread):
- * LED1-3  -> link lamps channels 1-3 (bidirectional)
+ * LED1-3  -> link lamps channels 1-3 (MC -> STM only; incoming L is ignored)
  * B4      -> remote receiver redstone output (STM32 -> MC)
  * T       -> remote transmitter (MC -> STM32), fire-and-forget
  */
@@ -27,9 +27,10 @@ public final class LinkState {
 	public static void handleIncoming(String line) {
 		ProtocolCodec.Incoming msg = ProtocolCodec.parse(line);
 		if (msg == null) return;
-		if (msg.kind() == 'L' && msg.channel() <= 3) {
-			led[msg.channel() - 1] = msg.value();
-			LinkRegistry.syncLamp(msg.channel(), msg.value());
+		if (msg.kind() == 'L') {
+			// Output-only link: MC is authoritative for the lamps, so a board LED
+			// report must never drive one back. Keep accepting L from old firmware.
+			return;
 		} else if (msg.kind() == 'B') {
 			switch (msg.channel()) {
 				case 2 -> {
@@ -56,6 +57,7 @@ public final class LinkState {
 		}
 	}
 
+	/** Last state MC pushed for this channel (not a board report). */
 	public static boolean ledState(int channel) {   // 1..3
 		if (channel < 1 || channel > 3) return false;
 		return led[channel - 1];

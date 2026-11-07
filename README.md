@@ -10,15 +10,16 @@ CH340 serial link. It is the Minecraft half of the
 
 - **Link lamps (red / green / blue)** — vanilla-redstone-lamp behaviour
   (instant on, 4-tick delayed off, placement signal check, piston handling)
-  mirrored with the board's LED1–LED3. Redstone and the serial link drive the
-  same state; B1 is the only local lamp button (red).
+  **MC -> STM32 only**: redstone (or another lamp on the same channel) drives
+  the board's LED1–LED3. The board never drives a lamp back, and its buttons
+  do not change one.
 - **Telemetry transmitter** — a redstone signal turns on the board's PA4
   T-LED and plays a short confirmation beep.
 - **Telemetry receivers** — three variants, each on its own board button:
   - **Level**: the output follows **B4** while it is held (15); release -> 0.
   - **Pulse**: each press of **B2** emits a short redstone pulse.
   - **Toggle**: each press of **B3** flips a persistent output latch.
-  B1 is the red link-lamp button only; B2/B3 no longer toggle lamps.
+  B1 is spare; B2/B3/B4 are receiver inputs only.
 - **Serial protocol** — 115200 8N1, line based (`L`, `T`, `N`, `W`, `Y`,
   `P`, `S`, `M`, `H`, `R`). Ports are auto-detected: every USB-serial port
   (CH340/FTDI/CP210x/PL2303/CDC) is tried, CH340 first; a configured `port` is
@@ -27,8 +28,8 @@ CH340 serial link. It is the Minecraft half of the
   Bluetooth/virtual COM ports are skipped because some wedge on the first write.
   A port is opened **read-only first**; the `S` state request is sent only after
   the firmware's own `H`/`R`/`L`/`B` line proves the peer is ours.
-- Link lamps no longer toggle on right-click; use redstone. B1 toggles only
-  the red lamp locally.
+- Link lamps no longer toggle on right-click; use redstone. Board buttons
+  are inputs only and never change a lamp.
 
 ## Build
 

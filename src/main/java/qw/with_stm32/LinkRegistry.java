@@ -110,40 +110,6 @@ public final class LinkRegistry {
 		return java.util.stream.StreamSupport.stream(server.getAllLevels().spliterator(), false);
 	}
 
-	/** Set every placed link lamp of this channel to the given state. */
-	public static void syncLamp(int channel, boolean lit) {
-		boolean[] redstoneKept = {false};
-		levels().forEach(level -> {
-			LinkSavedData data = LinkSavedData.get(level);
-			var it = data.get("lamp" + channel).iterator();
-			while (it.hasNext()) {
-				BlockPos pos = BlockPos.of(it.next());
-				if (!level.isLoaded(pos)) continue;
-				BlockState state = level.getBlockState(pos);
-				if (!(state.getBlock() instanceof LinkLampBlock lamp) || lamp.channel() != channel) {
-					it.remove();   // block was broken while we were offline
-					data.setDirty();
-					continue;
-				}
-				if (state.getValue(LinkLampBlock.LIT) != lit) {
-					// a redstone-fed lamp is locally powered: the board must not turn it off
-					if (!lit && level.hasNeighborSignal(pos)) {
-						redstoneKept[0] = true;
-						continue;
-					}
-					// UPDATE_CLIENTS, not UPDATE_ALL: a link lamp is not a redstone
-					// source, and notifying its neighbours here would feed the lamp's
-					// own vanilla-style neighbourChanged back into itself (or into an
-					// adjacent lamp), scheduling the 4-tick off and making a manual /
-					// board-driven light blink and die.
-					level.setBlock(pos, state.setValue(LinkLampBlock.LIT, lit), Block.UPDATE_CLIENTS);
-				}
-			}
-		});
-		// redstone is holding the channel on: tell the board (firmware echoes, no loop)
-		if (redstoneKept[0]) LinkState.setLed(channel, true);
-	}
-
 	/** A lit lamp was removed - if no lamp of the channel remains lit, tell the board. */
 	public static void lampRemoved(int channel, BlockPos removed) {
 		if (!anyLampLit(channel, removed)) LinkState.setLed(channel, false);
@@ -171,10 +137,9 @@ public final class LinkRegistry {
 	}
 
 	/**
-	 * Handshake: the world is the master for the lamp channels - push each
-	 * channel's actual state to the board. Without this, the firmware's "S"
-	 * reply (all-off right after boot) would dark every lamp on reconnect.
-	 * While connected, board button events still win as usual.
+	 * Handshake: the world is the only master for the lamp channels - push each
+	 * channel's actual state to the board. The firmware never reports LED state
+	 * back, so a board button cannot change a lamp.
 	 */
 	public static void pushLampStates() {
 		for (int ch = 1; ch <= 3; ch++) {

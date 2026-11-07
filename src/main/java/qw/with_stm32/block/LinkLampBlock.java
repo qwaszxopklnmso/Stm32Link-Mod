@@ -19,8 +19,9 @@ import qw.with_stm32.With_Stm32;
  * A vanilla redstone lamp (behaviour copied from RedstoneLampBlock: instant on,
  * 4-tick delayed off, signal check at placement time) that is mirrored with an
  * STM32 LED channel.
- * A redstone signal turns it on; the board's LED state also turns it on/off.
- * Right-click has no effect (the board buttons and redstone are the inputs).
+ * Output-only link: redstone (or another MC lamp on the same channel) turns it
+ * on; the board LED follows. The board never drives this lamp back.
+ * Right-click has no effect.
  */
 public class LinkLampBlock extends Block {
 	public static final BooleanProperty LIT = BooleanProperty.create("lit");
@@ -95,8 +96,8 @@ public class LinkLampBlock extends Block {
 		// Placement next to a live signal produces a lit state directly from
 		// getStateForPlacement(), so there is no lit -> dark transition here. It
 		// must still be pushed to the board, otherwise the block only *looks* lit
-		// and the STM32 LED stays dark. Dark placement still adopts a board LED
-		// that was already on, but never switches one off.
+		// and the STM32 LED stays dark. Dark placement still adopts a channel
+		// that is already lit in MC, but never switches one off.
 		if (state.getValue(LIT)) {
 			LinkState.setLed(channel, true);
 		} else if (level.hasNeighborSignal(pos) || LinkState.ledState(channel)) {
