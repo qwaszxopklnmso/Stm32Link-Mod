@@ -1,6 +1,11 @@
 package qw.with_stm32;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.fazecast.jSerialComm.SerialPort;
@@ -11,7 +16,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /** Serial port connection + reader thread for the STM32 link (ASCII line protocol). */
 public final class SerialLink {
-	private static final long HANDSHAKE_TIMEOUT_MS = 12000;   // firmware must greet us within this
+	private static final long HANDSHAKE_TIMEOUT_MS = 5000;    // firmware must greet us within this
+	private static final long BAD_PORT_MS = 30000;            // skip a port that failed to handshake
 	private static final int PORT_TIMEOUT_MS = 1000;          // native read/write cap
 
 	private static volatile boolean running = false;
@@ -21,6 +27,9 @@ public final class SerialLink {
 	private static volatile long openedAt = 0;
 	private static volatile String connectedName = null;
 	private static volatile long lastHeartbeat = 0;
+	private static volatile boolean reconnectRequested = false;
+	private static final ConcurrentHashMap<String, Long> BAD_PORTS = new ConcurrentHashMap<>();
+	private static int portCursor = 0;
 	private static Thread thread;
 
 	// Lines waiting to go out. The server thread only ever appends here - the
@@ -34,13 +43,15 @@ public final class SerialLink {
 	public static void init() {}
 
 	/** True only after the board answered (port open + firmware handshake). */
-	public static synchronized boolean isConnected() {
-		return port != null && port.isOpen() && handshaked;
+	public static boolean isConnected() {
+		SerialPort p = port;
+		return p != null && p.isOpen() && handshaked;
 	}
 
 	/** Port open but the board may not have answered yet. */
-	public static synchronized boolean isPortOpen() {
-		return port != null && port.isOpen();
+	public static boolean isPortOpen() {
+		SerialPort p = port;
+		return p != null && p.isOpen();
 	}
 
 	public static String connectedPortName() {
@@ -64,18 +75,24 @@ public final class SerialLink {
 		thread.start();
 	}
 
-	/** Called when the server stops. */
+	/**
+	 * Called when the server stops. Keep the port open: the worker and the
+	 * native handle survive a world unload, so a rejoin needs no reopen. The OS
+	 * closes it when the game process exits.
+	 */
 	public static synchronized void stop() {
 		wanted = false;
-		closePortAsync();
-		// The worker thread is reused for the lifetime of the mod. Keeping it
-		// alive avoids the stop()/start() race where a quick rejoin could start
-		// a second reader while the old one was still closing the port.
+		reconnectRequested = false;
 	}
 
-	/** Drop the current connection; the loop reconnects automatically. */
+	/**
+	 * Drop the current connection; the serial thread closes it and scans again.
+	 * Never close from the caller: a rapid triple /reconnect used to spawn three
+	 * closer threads that raced the next open and wedged the COM port.
+	 */
 	public static synchronized void reconnect() {
-		closePortAsync();
+		reconnectRequested = true;
+		OUTBOX.clear();
 	}
 
 	private static boolean isOpen() {
@@ -101,27 +118,16 @@ public final class SerialLink {
 		OUTBOX.clear();
 	}
 
-	/**
-	 * Close from OUTSIDE the reader thread (server stopping / /reconnect).
-	 * jSerialComm's closePort can block on Windows while the driver is wedged,
-	 * so the actual close runs on a throwaway daemon thread - world saving and
-	 * server shutdown must never wait on the serial driver.
-	 */
-	private static void closePortAsync() {
-		SerialPort p = takePort();
-		OUTBOX.clear();
-		if (p == null) return;
-		Thread closer = new Thread(() -> {
-			try { p.closePort(); } catch (Throwable ignored) {}
-		}, "withstm32-port-close");
-		closer.setDaemon(true);
-		closer.start();
-	}
-
 	private static void runLoop() {
 		long lastAttempt = 0;
 		while (running) {
 			try {
+				if (reconnectRequested) {
+					reconnectRequested = false;
+					closePort();
+					lastAttempt = 0;
+					continue;
+				}
 				if (!wanted) { sleep(500); continue; }
 				if (!isOpen()) {
 					if (System.currentTimeMillis() - lastAttempt >= 5000) {
@@ -153,10 +159,11 @@ public final class SerialLink {
 			SerialPort p = port;
 			if (p == null) return;
 			java.io.InputStream in = p.getInputStream();
-			while (running && wanted && isOpen()) {
-				while (running && wanted && isOpen() && in.available() == 0) {
+			while (running && wanted && !reconnectRequested && isOpen()) {
+				while (running && wanted && !reconnectRequested && isOpen() && in.available() == 0) {
 					drainOutbox();   // keep sending even while waiting for the first reply
 					if (!handshaked && System.currentTimeMillis() - openedAt > HANDSHAKE_TIMEOUT_MS) {
+						markBadPort(connectedName);
 						announce(null, "§e[WithSTM32] " + connectedName
 							+ " 无 STM32 应答（固件没烧录 / 板子没上电？见 STM32_Set.md），继续扫描...");
 						closePort();
@@ -164,12 +171,13 @@ public final class SerialLink {
 					}
 					sleep(50);
 				}
-				if (!running || !wanted || !isOpen()) return;
+				if (!running || !wanted || reconnectRequested || !isOpen()) return;
 				int c = in.read();   // data is available, will not block
 				if (c == -1) return;
 				// the timeout check above only runs while idle - a constant garbage
 				// stream (floating TX / wrong baud) must not pin the port either
 				if (!handshaked && System.currentTimeMillis() - openedAt > HANDSHAKE_TIMEOUT_MS) {
+					markBadPort(connectedName);
 					announce(null, "§e[WithSTM32] " + connectedName
 						+ " 有数据但不是 STM32 协议（波特率不对 / 不是本固件？见 STM32_Set.md），继续扫描...");
 					closePort();
@@ -205,7 +213,7 @@ public final class SerialLink {
 	}
 
 	private static void tryOpen() {
-		SerialPort target = findPort();
+		SerialPort target = nextCandidate();
 		if (target == null) return;
 		target.setBaudRate(LinkConfig.baud);
 		target.setNumDataBits(8);
@@ -215,6 +223,7 @@ public final class SerialLink {
 		target.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, PORT_TIMEOUT_MS, PORT_TIMEOUT_MS);
 		if (!target.openPort(1500)) {
 			With_Stm32.LOGGER.debug("STM32 link: failed to open {}", target.getSystemPortName());
+			markBadPort(target.getSystemPortName());
 			return;
 		}
 		port = target;
@@ -226,23 +235,74 @@ public final class SerialLink {
 		OUTBOX.add("S\n".getBytes(StandardCharsets.US_ASCII));
 	}
 
-	private static SerialPort findPort() {
+	/**
+	 * Round-robin over every serial port. A configured port is tried first, but
+	 * it no longer hides the rest: if COM5 is a different CH340, it is marked
+	 * bad and the next candidate (the real board) is tried immediately.
+	 */
+	private static SerialPort nextCandidate() {
+		List<SerialPort> candidates = candidates();
+		if (candidates.isEmpty()) return null;
+		SerialPort p = candidates.get(portCursor % candidates.size());
+		portCursor = (portCursor + 1) % candidates.size();
+		return p;
+	}
+
+	private static List<SerialPort> candidates() {
 		SerialPort[] ports = SerialPort.getCommPorts();
 		String cfg = LinkConfig.portName.trim();
+		List<SerialPort> ordered = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+		java.util.function.Consumer<SerialPort> add = p -> {
+			if (p != null && seen.add(p.getSystemPortName())) ordered.add(p);
+		};
 		if (!cfg.isEmpty()) {
+			String needle = cfg.toLowerCase();
 			for (SerialPort p : ports) {
+				String d = p.getDescriptivePortName();
 				if (p.getSystemPortName().equalsIgnoreCase(cfg)
-						|| p.getDescriptivePortName().contains(cfg)) return p;
+						|| (d != null && d.toLowerCase().contains(needle))) add.accept(p);
 			}
-			return null;
 		}
-		SerialPort fallback = null;
 		for (SerialPort p : ports) {
-			String d = p.getDescriptivePortName().toLowerCase();
-			if (d.contains("ch340") || d.contains("ch341") || d.contains("usb-serial") || d.contains("usb serial")) return p;
-			if (p.getSystemPortName().toLowerCase().startsWith("com")) fallback = p;
+			String d = p.getDescriptivePortName();
+			if (d == null) continue;
+			d = d.toLowerCase();
+			if (d.contains("ch340") || d.contains("ch341")) add.accept(p);
 		}
-		return fallback;
+		for (SerialPort p : ports) {
+			String d = p.getDescriptivePortName();
+			if (d == null) continue;
+			d = d.toLowerCase();
+			if (d.contains("usb-serial") || d.contains("usb serial") || d.contains("cdc")) add.accept(p);
+		}
+		for (SerialPort p : ports) {
+			if (isUsbSerial(p)) add.accept(p);
+		}
+		List<SerialPort> good = new ArrayList<>();
+		long now = System.currentTimeMillis();
+		for (SerialPort p : ordered) {
+			Long until = BAD_PORTS.get(p.getSystemPortName());
+			if (until == null || until <= now) good.add(p);
+		}
+		return good.isEmpty() ? ordered : good;
+	}
+
+	private static void markBadPort(String name) {
+		if (name != null && !name.isEmpty()) BAD_PORTS.put(name, System.currentTimeMillis() + BAD_PORT_MS);
+	}
+
+	/**
+	 * Only real USB-serial adapters are auto-opened. Bluetooth/virtual COM
+	 * ports (COM5 here) accept openPort but can wedge on the first write, which
+	 * was the "three reconnects then freeze" failure. An explicitly configured
+	 * port is still tried first even if it is not in this list.
+	 */
+	private static boolean isUsbSerial(SerialPort p) {
+		String d = (p.getDescriptivePortName() + " " + p.getPortDescription()).toLowerCase();
+		return d.contains("ch340") || d.contains("ch341") || d.contains("usb")
+				|| d.contains("ftdi") || d.contains("cp210") || d.contains("pl2303")
+				|| d.contains("cdc") || d.contains("acm");
 	}
 
 	/** Lines from STM32 arrive on the reader thread - hop onto the server thread. */
@@ -252,6 +312,7 @@ public final class SerialLink {
 			// (or a terminal echo) must not flip us into "connected"
 			if (!ProtocolCodec.isHandshake(line)) return;
 			handshaked = true;
+			BAD_PORTS.remove(connectedName);
 			announce(null, "§a[WithSTM32] STM32 已连接 (" + connectedName + ")");
 			// the board reported its state ("S" reply): mirror it into the world.
 			// the reverse direction too - lamps and transmitters are MC-driven, so

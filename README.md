@@ -20,7 +20,11 @@ CH340 serial link. It is the Minecraft half of the
   - **Toggle**: each press of **B3** flips a persistent output latch.
   B1 remains the red link-lamp button.
 - **Serial protocol** — 115200 8N1, line based (`L`, `T`, `N`, `W`, `Y`,
-  `P`, `S`, `M`, `H`, `R`).
+  `P`, `S`, `M`, `H`, `R`). Ports are auto-detected: every USB-serial port
+  (CH340/FTDI/CP210x/PL2303/CDC) is tried, CH340 first; a configured `port` is
+  only a preference, not a filter. A port that fails the handshake is skipped
+  for 30 s, so a wrong CH340 on COM3/COM5 cannot hide the board on another port.
+  Bluetooth/virtual COM ports are skipped because some wedge on the first write.
 - Link lamps no longer toggle on right-click; use redstone or the board
   buttons.
 
