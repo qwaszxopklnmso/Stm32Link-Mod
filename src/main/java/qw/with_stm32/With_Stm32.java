@@ -35,6 +35,7 @@ public class With_Stm32 implements ModInitializer {
 
 		ServerLifecycleEvents.SERVER_STARTED.register(s -> {
 			server = s;
+			LinkState.beginWorld();
 			SerialLink.start();
 			// A fresh world (or a re-entered single-player world) must win over
 			// whatever lamp/transmitter/receiver state the still-running board
@@ -43,7 +44,7 @@ public class With_Stm32 implements ModInitializer {
 			// needed here; push the new world's state immediately.
 			LinkRegistry.pushTransmitterState(null);
 			LinkRegistry.pushLampStates();
-			LinkRegistry.syncReceiver(LinkState.receiverState());
+			LinkRegistry.syncReceiverLevel(LinkState.receiverState());
 		});
 		ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
 			// Keep the serial port open while leaving a world. Closing it here

@@ -3,7 +3,9 @@
   "block.with_stm32.link_lamp_red": "Link Lamp (Red)",
   "block.with_stm32.link_lamp_green": "Link Lamp (Green)",
   "block.with_stm32.link_lamp_blue": "Link Lamp (Blue)",
-  "block.with_stm32.remote_receiver": "Telemetry Receiver (STM32→MC)",
+  "block.with_stm32.remote_receiver": "Telemetry Level Receiver (STM32→MC)",
+  "block.with_stm32.pulse_receiver": "Telemetry Pulse Receiver (STM32→MC)",
+  "block.with_stm32.toggle_receiver": "Telemetry Toggle Receiver (STM32→MC)",
   "block.with_stm32.remote_transmitter": "Telemetry Transmitter (MC→STM32)",
   "item.with_stm32.tune_whistle": "Tune Whistle"
 }

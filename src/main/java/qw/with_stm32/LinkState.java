@@ -11,8 +11,17 @@ import net.minecraft.core.BlockPos;
 public final class LinkState {
 	private static final boolean[] led = new boolean[3];
 	private static boolean button4 = false;
+	// The first B4 report after entering a world is a state sync, not a button
+	// press. Without this flag, a board that was already on would fire a pulse
+	// or flip a toggle just because the player changed dimension.
+	private static boolean receiverSeen = false;
 
 	private LinkState() {}
+
+	/** Called when a world starts; the next B4 line only syncs the level. */
+	public static void beginWorld() {
+		receiverSeen = false;
+	}
 
 	/** Called on the server thread for every protocol line from the board. */
 	public static void handleIncoming(String line) {
@@ -22,8 +31,14 @@ public final class LinkState {
 			led[msg.channel() - 1] = msg.value();
 			LinkRegistry.syncLamp(msg.channel(), msg.value());
 		} else if (msg.kind() == 'B' && msg.channel() == 4) {
+			boolean old = button4;
 			button4 = msg.value();
-			LinkRegistry.syncReceiver(msg.value());
+			if (!receiverSeen) {
+				receiverSeen = true;
+				LinkRegistry.syncReceiverLevel(button4);   // initial state, no edge
+			} else if (old != button4) {
+				LinkRegistry.onReceiverChange(button4);
+			}
 		}
 	}
 

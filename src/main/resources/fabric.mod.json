@@ -3,15 +3,15 @@
   "id": "with_stm32",
   "version": "${version}",
   "name": "With STM32",
-  "description": "MC <-> STM32 serial link: link lamps, telemetry receiver/transmitter and a synchronized tune whistle. See STM32_Set.md for wiring.",
+  "description": "MC <-> STM32 serial link: link lamps, level/pulse/toggle telemetry receivers, transmitter and a synchronized tune whistle. See STM32_Set.md for wiring.",
   "authors": [
     "qw"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/qwaszxopklnmso/Stm32Link",
+    "sources": "https://github.com/qwaszxopklnmso/Stm32Link-Mod"
   },
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/with_stm32/icon.png",
   "environment": "*",
   "entrypoints": {

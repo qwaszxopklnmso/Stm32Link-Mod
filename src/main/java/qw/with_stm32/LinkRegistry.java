@@ -32,6 +32,8 @@ public final class LinkRegistry {
 	public static Block LINK_LAMP_GREEN;
 	public static Block LINK_LAMP_BLUE;
 	public static Block REMOTE_RECEIVER;
+	public static Block PULSE_RECEIVER;
+	public static Block TOGGLE_RECEIVER;
 	public static Block REMOTE_TRANSMITTER;
 	public static Item TUNE_WHISTLE;
 
@@ -43,7 +45,11 @@ public final class LinkRegistry {
 		LINK_LAMP_BLUE = registerLamp("link_lamp_blue", 3, MapColor.COLOR_BLUE);
 
 		REMOTE_RECEIVER = registerBlock("remote_receiver",
-			(key, props) -> new RemoteReceiverBlock(props.setId(key)));
+			(key, props) -> new RemoteReceiverBlock(RemoteReceiverBlock.Mode.LEVEL, props.setId(key)));
+		PULSE_RECEIVER = registerBlock("pulse_receiver",
+			(key, props) -> new RemoteReceiverBlock(RemoteReceiverBlock.Mode.PULSE, props.setId(key)));
+		TOGGLE_RECEIVER = registerBlock("toggle_receiver",
+			(key, props) -> new RemoteReceiverBlock(RemoteReceiverBlock.Mode.TOGGLE, props.setId(key)));
 		REMOTE_TRANSMITTER = registerBlock("remote_transmitter",
 			(key, props) -> new RemoteTransmitterBlock(props.setId(key)));
 
@@ -60,6 +66,8 @@ public final class LinkRegistry {
 				out.accept(LINK_LAMP_GREEN);
 				out.accept(LINK_LAMP_BLUE);
 				out.accept(REMOTE_RECEIVER);
+				out.accept(PULSE_RECEIVER);
+				out.accept(TOGGLE_RECEIVER);
 				out.accept(REMOTE_TRANSMITTER);
 				out.accept(TUNE_WHISTLE);
 			})
@@ -204,8 +212,11 @@ public final class LinkRegistry {
 		SerialLink.send("T:" + (any ? 1 : 0));
 	}
 
-	/** Set every placed remote receiver to the given powered state. */
-	public static void syncReceiver(boolean powered) {
+	/**
+	 * Level receivers follow B4. Pulse/toggle variants are edge-driven: on a
+	 * world join they must not replay an old "on" state as a fresh pulse.
+	 */
+	public static void syncReceiverLevel(boolean powered) {
 		levels().forEach(level -> {
 			LinkSavedData data = LinkSavedData.get(level);
 			var it = data.get("receiver").iterator();
@@ -213,14 +224,38 @@ public final class LinkRegistry {
 				BlockPos pos = BlockPos.of(it.next());
 				if (!level.isLoaded(pos)) continue;
 				BlockState state = level.getBlockState(pos);
-				if (!(state.getBlock() instanceof RemoteReceiverBlock)) {
+				if (!(state.getBlock() instanceof RemoteReceiverBlock receiver)) {
 					it.remove();
 					data.setDirty();
 					continue;
 				}
+				if (receiver.mode() != RemoteReceiverBlock.Mode.LEVEL) continue;
 				if (state.getValue(RemoteReceiverBlock.POWERED) != powered) {
 					level.setBlock(pos, state.setValue(RemoteReceiverBlock.POWERED, powered), Block.UPDATE_ALL);
 				}
+			}
+		});
+	}
+
+	/**
+	 * B4 changed after the initial sync. Every receiver type gets the same
+	 * transition and applies its own semantics: level follows, pulse emits a
+	 * short pulse, toggle flips its latch.
+	 */
+	public static void onReceiverChange(boolean powered) {
+		levels().forEach(level -> {
+			LinkSavedData data = LinkSavedData.get(level);
+			var it = data.get("receiver").iterator();
+			while (it.hasNext()) {
+				BlockPos pos = BlockPos.of(it.next());
+				if (!level.isLoaded(pos)) continue;
+				BlockState state = level.getBlockState(pos);
+				if (!(state.getBlock() instanceof RemoteReceiverBlock receiver)) {
+					it.remove();
+					data.setDirty();
+					continue;
+				}
+				receiver.onSignal(level, pos, state, powered);
 			}
 		});
 	}
