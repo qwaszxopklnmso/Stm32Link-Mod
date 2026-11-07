@@ -238,11 +238,19 @@ public final class LinkRegistry {
 	}
 
 	/**
-	 * B4 changed after the initial sync. Every receiver type gets the same
-	 * transition and applies its own semantics: level follows, pulse emits a
-	 * short pulse, toggle flips its latch.
+	 * B2 is a press event: only pulse receivers react, each emitting one
+	 * short pulse. B3 is the toggle receiver's clock. B4 remains the level
+	 * source and is handled by syncReceiverLevel above.
 	 */
-	public static void onReceiverChange(boolean powered) {
+	public static void onReceiverPulse() {
+		onReceiverEvent(RemoteReceiverBlock.Mode.PULSE, true);
+	}
+
+	public static void onReceiverToggle() {
+		onReceiverEvent(RemoteReceiverBlock.Mode.TOGGLE, true);
+	}
+
+	private static void onReceiverEvent(RemoteReceiverBlock.Mode mode, boolean value) {
 		levels().forEach(level -> {
 			LinkSavedData data = LinkSavedData.get(level);
 			var it = data.get("receiver").iterator();
@@ -255,7 +263,8 @@ public final class LinkRegistry {
 					data.setDirty();
 					continue;
 				}
-				receiver.onSignal(level, pos, state, powered);
+				if (receiver.mode() != mode) continue;
+				receiver.onSignal(level, pos, state, value);
 			}
 		});
 	}

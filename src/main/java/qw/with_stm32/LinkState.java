@@ -30,14 +30,28 @@ public final class LinkState {
 		if (msg.kind() == 'L' && msg.channel() <= 3) {
 			led[msg.channel() - 1] = msg.value();
 			LinkRegistry.syncLamp(msg.channel(), msg.value());
-		} else if (msg.kind() == 'B' && msg.channel() == 4) {
-			boolean old = button4;
-			button4 = msg.value();
-			if (!receiverSeen) {
-				receiverSeen = true;
-				LinkRegistry.syncReceiverLevel(button4);   // initial state, no edge
-			} else if (old != button4) {
-				LinkRegistry.onReceiverChange(button4);
+		} else if (msg.kind() == 'B') {
+			switch (msg.channel()) {
+				case 2 -> {
+					// B2 is a press event: the pulse receiver gets one short pulse.
+					if (msg.value()) LinkRegistry.onReceiverPulse();
+				}
+				case 3 -> {
+					// B3 is a press event: the toggle receiver flips its latch.
+					if (msg.value()) LinkRegistry.onReceiverToggle();
+				}
+				case 4 -> {
+					// B4 is still the level source for the original receiver.
+					boolean old = button4;
+					button4 = msg.value();
+					if (!receiverSeen) {
+						receiverSeen = true;
+						LinkRegistry.syncReceiverLevel(button4);   // initial state, no edge
+					} else if (old != button4) {
+						LinkRegistry.syncReceiverLevel(button4);
+					}
+				}
+				default -> { }
 			}
 		}
 	}
