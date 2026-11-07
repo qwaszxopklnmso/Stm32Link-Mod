@@ -1,10 +1,10 @@
 {
   "variants": {
     "powered=false": {
-      "model": "with_stm32:block/remote_receiver_off"
+      "model": "with_stm32:block/pulse_receiver_off"
     },
     "powered=true": {
-      "model": "with_stm32:block/remote_receiver_on"
+      "model": "with_stm32:block/pulse_receiver_on"
     }
   }
 }

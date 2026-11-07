@@ -15,8 +15,8 @@ import qw.with_stm32.LinkSavedData;
 import qw.with_stm32.LinkState;
 
 /**
- * STM32 -> MC. All variants read the board's B4 button, but process the
- * transitions differently:
+ * STM32 -> MC. LEVEL reads B4, PULSE reads B2, TOGGLE reads B3, and each
+ * processes the transition differently:
  *
  * <ul>
  *   <li>{@link Mode#LEVEL} - output follows B4 (the original receiver).</li>

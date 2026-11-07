@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "with_stm32:block/toggle_receiver_off"
+  }
+}
