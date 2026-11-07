@@ -207,6 +207,30 @@ public final class LinkRegistry {
 	 * short pulse. B3 is the toggle receiver's clock. B4 remains the level
 	 * source and is handled by syncReceiverLevel above.
 	 */
+	/**
+	 * B1 panic reset: drop every receiver output (level, pulse, toggle) without
+	 * touching any link lamp. A held B4 is not re-asserted until it changes again.
+	 */
+	public static void resetReceivers() {
+		levels().forEach(level -> {
+			LinkSavedData data = LinkSavedData.get(level);
+			var it = data.get("receiver").iterator();
+			while (it.hasNext()) {
+				BlockPos pos = BlockPos.of(it.next());
+				if (!level.isLoaded(pos)) continue;
+				BlockState state = level.getBlockState(pos);
+				if (!(state.getBlock() instanceof RemoteReceiverBlock)) {
+					it.remove();
+					data.setDirty();
+					continue;
+				}
+				if (state.getValue(RemoteReceiverBlock.POWERED)) {
+					level.setBlock(pos, state.setValue(RemoteReceiverBlock.POWERED, false), Block.UPDATE_ALL);
+				}
+			}
+		});
+	}
+
 	public static void onReceiverPulse() {
 		onReceiverEvent(RemoteReceiverBlock.Mode.PULSE, true);
 	}

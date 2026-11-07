@@ -33,6 +33,10 @@ public final class LinkState {
 			return;
 		} else if (msg.kind() == 'B') {
 			switch (msg.channel()) {
+				case 1 -> {
+					// B1 is a panic reset for the telemetry outputs, not a lamp control.
+					if (msg.value()) LinkRegistry.resetReceivers();
+				}
 				case 2 -> {
 					// B2 is a press event: the pulse receiver gets one short pulse.
 					if (msg.value()) LinkRegistry.onReceiverPulse();

@@ -19,7 +19,8 @@ CH340 serial link. It is the Minecraft half of the
   - **Level**: the output follows **B4** while it is held (15); release -> 0.
   - **Pulse**: each press of **B2** emits a short redstone pulse.
   - **Toggle**: each press of **B3** flips a persistent output latch.
-  B1 is spare; B2/B3/B4 are receiver inputs only.
+  B1 is a panic reset for every receiver output (pulse/toggle/level);
+  B2/B3/B4 are receiver inputs only.
 - **Serial protocol** — 115200 8N1, line based (`L`, `T`, `N`, `W`, `Y`,
   `P`, `S`, `M`, `H`, `R`). Ports are auto-detected: every USB-serial port
   (CH340/FTDI/CP210x/PL2303/CDC) is tried, CH340 first; a configured `port` is
