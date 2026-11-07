@@ -25,6 +25,8 @@ CH340 serial link. It is the Minecraft half of the
   only a preference, not a filter. A port that fails the handshake is skipped
   for 30 s, so a wrong CH340 on COM3/COM5 cannot hide the board on another port.
   Bluetooth/virtual COM ports are skipped because some wedge on the first write.
+  A port is opened **read-only first**; the `S` state request is sent only after
+  the firmware's own `H`/`R`/`L`/`B` line proves the peer is ours.
 - Link lamps no longer toggle on right-click; use redstone or the board
   buttons.
 

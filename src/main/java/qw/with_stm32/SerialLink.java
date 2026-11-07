@@ -230,9 +230,12 @@ public final class SerialLink {
 		connectedName = target.getSystemPortName();
 		handshaked = false;
 		openedAt = System.currentTimeMillis();
-		With_Stm32.LOGGER.info("STM32 link port {} opened ({} baud), waiting for handshake", connectedName, LinkConfig.baud);
+		With_Stm32.LOGGER.info("STM32 link port {} opened ({} baud), listening for handshake", connectedName, LinkConfig.baud);
 		announce(null, "§e[WithSTM32] 串口 " + connectedName + " 已打开，等待 STM32 应答...");
-		OUTBOX.add("S\n".getBytes(StandardCharsets.US_ASCII));
+		// Do NOT write yet. A random USB-serial device (printer, relay, GPS)
+		// must not receive an S command just because its port was enumerated.
+		// The firmware sends H every second (and R at boot), so we can identify
+		// it read-only; S is queued only after a valid protocol line arrives.
 	}
 
 	/**
@@ -313,6 +316,10 @@ public final class SerialLink {
 			if (!ProtocolCodec.isHandshake(line)) return;
 			handshaked = true;
 			BAD_PORTS.remove(connectedName);
+			// Now that the peer speaks our protocol, it is safe to ask for the
+			// full state ("S" -> L/B lines). Never send this to an unidentified
+			// port: single-letter commands are device-specific.
+			OUTBOX.add("S\n".getBytes(StandardCharsets.US_ASCII));
 			announce(null, "§a[WithSTM32] STM32 已连接 (" + connectedName + ")");
 			// the board reported its state ("S" reply): mirror it into the world.
 			// the reverse direction too - lamps and transmitters are MC-driven, so
