@@ -31,6 +31,13 @@ dependencies {
 
 	// Serial port access (bundled into the mod jar via jar-in-jar)
 	include implementation("com.fazecast:jSerialComm:2.11.0")
+
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
 }
 
 processResources {

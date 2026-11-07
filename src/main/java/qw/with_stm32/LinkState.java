@@ -16,22 +16,19 @@ public final class LinkState {
 
 	/** Called on the server thread for every protocol line from the board. */
 	public static void handleIncoming(String line) {
-		if (line.length() >= 4 && line.charAt(2) == ':') {
-			char kind = line.charAt(0);
-			char num = line.charAt(1);
-			boolean v = line.charAt(3) == '1';
-			if (kind == 'L' && num >= '1' && num <= '3') {
-				int ch = num - '1';
-				led[ch] = v;
-				LinkRegistry.syncLamp(ch + 1, v);
-			} else if (kind == 'B' && num == '4') {
-				button4 = v;
-				LinkRegistry.syncReceiver(v);
-			}
+		ProtocolCodec.Incoming msg = ProtocolCodec.parse(line);
+		if (msg == null) return;
+		if (msg.kind() == 'L' && msg.channel() <= 3) {
+			led[msg.channel() - 1] = msg.value();
+			LinkRegistry.syncLamp(msg.channel(), msg.value());
+		} else if (msg.kind() == 'B' && msg.channel() == 4) {
+			button4 = msg.value();
+			LinkRegistry.syncReceiver(msg.value());
 		}
 	}
 
 	public static boolean ledState(int channel) {   // 1..3
+		if (channel < 1 || channel > 3) return false;
 		return led[channel - 1];
 	}
 
@@ -41,6 +38,7 @@ public final class LinkState {
 
 	/** Push an LED change to the board (called from lamp interactions). */
 	public static void setLed(int channel, boolean v) {
+		if (channel < 1 || channel > 3) return;
 		led[channel - 1] = v;
 		SerialLink.send("L" + channel + ":" + (v ? 1 : 0));
 	}

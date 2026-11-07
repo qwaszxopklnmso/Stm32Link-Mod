@@ -54,7 +54,10 @@ public final class SerialLink {
 	/** Called when a server starts. */
 	public static synchronized void start() {
 		wanted = true;
-		if (running && thread != null && thread.isAlive()) return;
+		if (thread != null && thread.isAlive()) {
+			running = true;
+			return;
+		}
 		running = true;
 		thread = new Thread(SerialLink::runLoop, "withstm32-serial");
 		thread.setDaemon(true);
@@ -64,9 +67,10 @@ public final class SerialLink {
 	/** Called when the server stops. */
 	public static synchronized void stop() {
 		wanted = false;
-		running = false;
 		closePortAsync();
-		if (thread != null) thread.interrupt();
+		// The worker thread is reused for the lifetime of the mod. Keeping it
+		// alive avoids the stop()/start() race where a quick rejoin could start
+		// a second reader while the old one was still closing the port.
 	}
 
 	/** Drop the current connection; the loop reconnects automatically. */
@@ -241,16 +245,12 @@ public final class SerialLink {
 		return fallback;
 	}
 
-	/** Lines the firmware actually sends: L<v>:<v>, B<v>:<v>, H, R, OK. */
-	private static final java.util.regex.Pattern FIRMWARE_LINE =
-		java.util.regex.Pattern.compile("([LB][1-4]:[01])|H|R|OK");
-
 	/** Lines from STM32 arrive on the reader thread - hop onto the server thread. */
 	private static void handleLine(String line) {
 		if (!handshaked) {
 			// only a genuine protocol line counts as the handshake - random noise
 			// (or a terminal echo) must not flip us into "connected"
-			if (!FIRMWARE_LINE.matcher(line).matches()) return;
+			if (!ProtocolCodec.isHandshake(line)) return;
 			handshaked = true;
 			announce(null, "§a[WithSTM32] STM32 已连接 (" + connectedName + ")");
 			// the board reported its state ("S" reply): mirror it into the world.
